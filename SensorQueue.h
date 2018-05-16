@@ -1,6 +1,6 @@
 #include "mbed.h"
 #include "mbed_events.h"
-#include <vector>
+#include <list>
 #include <cstdlib>
 #include <cstring>
 
@@ -15,7 +15,7 @@ class SensorQueue {
     EventQueue queue;
 
     void (*callback_func)(void);
-    std::vector<*T> block_input;
+    std::list<*T> block_list;
     T* newBlock(void);
     void append_helper(T elem);
     void copyTo_helper(*void ptr, bool adv_frame = true);

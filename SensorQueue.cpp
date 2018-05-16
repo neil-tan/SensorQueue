@@ -21,7 +21,7 @@ template <class T>
 T* SensorQueue::newBlock(void) {
   blk_offset = 0;
   T* new_blk = malloc(sizeof(T) * blk_length)
-  block_input.push_back(new_blk);
+  block_list.push_back(new_blk);
 
   return new_blk;
 }
@@ -34,15 +34,17 @@ template <class T>
 void SensorQueue::append_helper(T elem) {
   if(blk_offset >= blk_length) {
     if(buffered_blocks < max_pool_blks) {
-      (*callback_func)();
+      //(*callback_func)();
+      queue.call(*callback_func);
+      queue.dispatch(0);
       newBlock();  //new block and resets blk_offset
     } else {
-      //printf("error: max_pool_blks exceeded\r\n");
+      printf("error: max_pool_blks exceeded\r\n");
       exit(-1);
     }
   }
 
-  T* current_blk = block_input.back();
+  T* current_blk = block_list.back();
   current_blk[blk_offset] = elem;
   blk_offset += 1;
 }
@@ -55,13 +57,15 @@ void SensorQueue::append(T &elem) {
 template <class T>
 void copyTo_helper(*void ptr, bool adv_frame) {
   //TODO:  move the following to a blocking event queue call
+  auto it = block_list.begin();
   for(int i = 0; i < total_blks; i++) {
-    memcpy((*void)(ptr + i * blk_length * sizeof(T)), (*void) block_input[i], sizeof(T) * blk_length);
+    memcpy((*void)(ptr + i * blk_length * sizeof(T)), (*void) *it, sizeof(T) * blk_length);
+    it++;
   }
 
-  if(adv_frame && block_input.size() >= blk_length) {
-    free(block_input[0]);
-    block_input.erase(block_input.begin(), block_input.begin()+1);  //vector is not the best choice for this
+  if(adv_frame && block_list.size() >= blk_length) {
+    free(block_list.front());
+    block_list.pop_front();
   }
 }
 
