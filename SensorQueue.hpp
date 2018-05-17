@@ -68,8 +68,6 @@ void SensorQueue<T>::setCallBack(void (*_fun_ptr)) {
 
 template <class T>
 void SensorQueue<T>::append_helper(T elem) {
-  //printf("inside append helper\r\n");
-  //printf("blocks: %d / %d\r\n", block_list.size(), total_blks);
   if(blk_offset >= blk_length) {
     if(block_list.size() < max_pool_blks + total_blks) {
       //(*callback_func)();
@@ -91,15 +89,12 @@ void SensorQueue<T>::append_helper(T elem) {
 
 template <class T>
 void SensorQueue<T>::append(T elem) {
-  //printf("inside append\r\n");
   queue.call(this, &SensorQueue<T>::append_helper, elem);
   queue.dispatch(0); //returns immediately
 }
 
 template <class T>
 void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
-  printf("inside copyTo_helper\r\n");
-  printf("blk_length is: %d\r\n", blk_length);
   auto it = block_list.begin();
   for(int i = 0; i < total_blks; i++) {
     //printf("offset is: %d\r\n", i * blk_length);
@@ -108,10 +103,8 @@ void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
   }
 
   if(adv_frame && block_list.size() > total_blks) {
-    printf("freeing memory, total blocks: %d\r\n", block_list.size());
     free(block_list.front());
     block_list.pop_front();
-    printf("memory freed, total blocks: %d\r\n", block_list.size());
   }
 }
 
@@ -135,8 +128,6 @@ bool compare_test(T* input, list<T> ref, int n) {
     }
     it++;
   }
-
-  printf("internal compare finished\r\n");
 
   if(!result) {
     printf("=============================\n");
@@ -164,6 +155,7 @@ void SensorQueue_Test(void) {
   list<int> ref;
   int* result = (int*) malloc(sizeof(int) * 12);
 
+  printf("=============================\r\n");
   printf("Constructing initial test data\r\n");
   for(int i = 0; i < 12; i++) {
     ref.push_back(i);
@@ -172,14 +164,14 @@ void SensorQueue_Test(void) {
   buff.printStates();
   //l:12 b:3
 
-  printf("1st copy to:\r\n");
+  printf("=============================\r\n");
+  printf("test 1: ");
   buff.copyTo(result);
-  printf("done copying\r\n");
   if(!compare_test(result, ref, 12)) { printf("test failed"); exit(-1); }
-  //for(int i = 0; i < 4; i++) { ref.pop_front(); }
   buff.printStates();
   //l:12 b:3
 
+  printf("=============================\r\n");
   printf("Constructing 2nd test data\r\n");
   for(int i = 0; i < 8; i++) {
     ref.push_back(i * -1);
@@ -187,16 +179,21 @@ void SensorQueue_Test(void) {
   }
   buff.printStates();
   //l:16 b:4
-  printf("2nd copy to:\r\n");
+
+  printf("=============================\r\n");
+  printf("test 2: ");
   buff.copyTo(result);
   if(!compare_test(result, ref, 12)) { printf("test failed"); exit(-1); }
   for(int i = 0; i < 4; i++) { ref.pop_front(); }
   buff.printStates();
+
+  printf("=============================\r\n");
   //l:12 b:3
-  printf("3rd copy to:\r\n");
+  printf("test 3: ");
   buff.copyTo(result);
   if(!compare_test(result, ref, 12)) { printf("test failed"); exit(-1); }
   buff.printStates();
+  printf("=============================\r\n");
   //l:12 b:3
 }
 #endif
