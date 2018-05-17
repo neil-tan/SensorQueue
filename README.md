@@ -2,6 +2,9 @@
 
 ## Introduction
   Buffers a sequential input and produces a sliding-window snapshot of the buffered data. This class uses `<list>` and [EventQueue](https://docs.mbed.com/docs/mbed-os-api-ref/en/stable/APIs/tasks/events_lib/) to achieve memory pooling and thread safety.
+## Requirements
+  - Mbed
+  - uTensor [build profile](https://github.com/uTensor/uTensor/tree/master/build_profile)
 ## APIs
 
 - **SensorQueue**(uint32_t length, uint16_t blk_length, uint16_t max_pool_blks = 1);
