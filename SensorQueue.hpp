@@ -71,7 +71,7 @@ void SensorQueue<T>::append_helper(T elem) {
   //printf("inside append helper\r\n");
   //printf("blocks: %d / %d\r\n", block_list.size(), total_blks);
   if(blk_offset >= blk_length) {
-    if(block_list.size() <= max_pool_blks + total_blks) {
+    if(block_list.size() < max_pool_blks + total_blks) {
       //(*callback_func)();
       if(callback_func != NULL) {
         queue.call(*callback_func);
@@ -160,7 +160,7 @@ bool compare_test(T* input, list<T> ref, int n) {
 }
 
 void SensorQueue_Test(void) {
-  SensorQueue<int> buff(12, 4);
+  SensorQueue<int> buff(12, 4, 2);
   list<int> ref;
   int* result = (int*) malloc(sizeof(int) * 12);
 
@@ -181,7 +181,7 @@ void SensorQueue_Test(void) {
   //l:12 b:3
 
   printf("Constructing 2nd test data\r\n");
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < 8; i++) {
     ref.push_back(i * -1);
     buff.append(i * -1);
   }
