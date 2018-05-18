@@ -72,14 +72,15 @@ void SensorQueue<T>::append_helper(T elem) {
     if(block_list.size() < max_pool_blks + total_blks) {
       //(*callback_func)();
       if(callback_func != NULL) {
-        queue.call(*callback_func);
+        queue.call(*callback_func);  //NT: change this to mbed os default queue maybe?
         queue.dispatch(0);
       }
-      newBlock();  //new block and resets blk_offset
     } else {
-      printf("error: max_pool_blks exceeded\r\n");
-      exit(-1);
+      printf("warning: max_pool_blks exceeded\r\n");
+      block_list.pop_front();
     }
+
+    newBlock();  //new block and resets blk_offset
   }
 
   T* current_blk = block_list.back();
@@ -97,7 +98,7 @@ template <class T>
 void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
   auto it = block_list.begin();
   for(int i = 0; i < total_blks; i++) {
-    //printf("offset is: %d\r\n", i * blk_length);
+    printf("offset is: %d\r\n", i * blk_length);
     memcpy((void*)(ptr + i * blk_length * sizeof(T)), (void*) *it, sizeof(T) * blk_length);
     it++;
   }
@@ -150,10 +151,10 @@ bool compare_test(T* input, list<T> ref, int n) {
   return result;
 }
 
-void SensorQueue_Test(void) {
-  SensorQueue<int> buff(12, 4, 2);
+void SensorQueue_Test(int window_size, int incre_step, int n_max_pool) {
+  SensorQueue<int> buff(window_size, incre_step, n_max_pool);
   list<int> ref;
-  int* result = (int*) malloc(sizeof(int) * 12);
+  int* result = (int*) malloc(sizeof(int) * window_size);
 
   printf("=============================\r\n");
   printf("Constructing initial test data\r\n");
@@ -167,7 +168,7 @@ void SensorQueue_Test(void) {
   printf("=============================\r\n");
   printf("test 1: ");
   buff.copyTo(result);
-  if(!compare_test(result, ref, 12)) { printf("test failed"); exit(-1); }
+  if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
   buff.printStates();
   //l:12 b:3
 
@@ -183,17 +184,39 @@ void SensorQueue_Test(void) {
   printf("=============================\r\n");
   printf("test 2: ");
   buff.copyTo(result);
-  if(!compare_test(result, ref, 12)) { printf("test failed"); exit(-1); }
-  for(int i = 0; i < 4; i++) { ref.pop_front(); }
+  if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
+  for(int i = 0; i < incre_step; i++) { ref.pop_front(); }
   buff.printStates();
 
   printf("=============================\r\n");
   //l:12 b:3
   printf("test 3: ");
   buff.copyTo(result);
-  if(!compare_test(result, ref, 12)) { printf("test failed"); exit(-1); }
+  if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
   buff.printStates();
   printf("=============================\r\n");
   //l:12 b:3
+
+  printf("=============================\r\n");
+  ref.clear();
+  printf("Constructing overflow test data\r\n");
+  //overflows the buffer
+  for(int i = 0; i < 35; i++) {
+    buff.append(-1024);
+  }
+
+  for(int i = 0; i < window_size; i++) {
+    ref.push_back(i * -1);
+    buff.append(i * -1);
+  }
+
+  for(int i = 0; i < (window_size - (incre_step * n_max_pool)); i++) {
+    buff.append(0);
+  }
+
+  buff.copyTo(result);
+  buff.printStates();
+  if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
+
 }
 #endif
