@@ -14,7 +14,9 @@ class SensorQueue {
     uint16_t max_pool_blks;
     uint16_t total_blks;
     uint16_t blk_offset; //The index within an individual block
+    Thread eventThread;
     EventQueue queue;
+
 
     void (*callback_func)(void);
     std::list<T*> block_list;
@@ -46,6 +48,7 @@ SensorQueue<T>::SensorQueue(uint32_t length, uint16_t _blk_length, uint16_t _max
   if(length > (total_blks * blk_length)) total_blks += 1;
   blk_offset = 0;
 
+  eventThread.start(callback(&queue, &EventQueue::dispatch_forever));
   //Init Block
   newBlock();
 
@@ -55,7 +58,7 @@ SensorQueue<T>::SensorQueue(uint32_t length, uint16_t _blk_length, uint16_t _max
 template <class T>
 T* SensorQueue<T>::newBlock(void) {
   blk_offset = 0;
-  T* new_blk = (int*) malloc(sizeof(T) * blk_length);
+  T* new_blk = (T*) malloc(sizeof(T) * blk_length);
   block_list.push_back(new_blk);
 
   return new_blk;
@@ -154,7 +157,7 @@ bool compare_test(T* input, list<T> ref, int n) {
 void SensorQueue_Test(int window_size, int incre_step, int n_max_pool) {
   SensorQueue<int> buff(window_size, incre_step, n_max_pool);
   list<int> ref;
-  int* result = (int*) malloc(sizeof(int) * window_size);
+  int result[window_size];
 
   printf("=============================\r\n");
   printf("Constructing initial test data\r\n");
@@ -174,17 +177,25 @@ void SensorQueue_Test(int window_size, int incre_step, int n_max_pool) {
 
   printf("=============================\r\n");
   printf("Constructing 2nd test data\r\n");
-  for(int i = 0; i < 8; i++) {
+  ref.clear();
+  int result2[window_size];
+//8 2 2
+  for(int i = 0; i < 17; i++) {
     ref.push_back(i * -1);
     buff.append(i * -1);
+  }
+  int n_pop = 17 - (window_size + n_max_pool * incre_step);
+  if(n_pop > 0 && n_pop % incre_step != 0) n_pop = n_pop - (n_pop % incre_step) + incre_step; //round up
+  for(int i = 0; i < n_pop; i++) {
+    ref.pop_front();
   }
   buff.printStates();
   //l:16 b:4
 
   printf("=============================\r\n");
   printf("test 2: ");
-  buff.copyTo(result);
-  if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
+  buff.copyTo(result2);
+  if(!compare_test(result2, ref, window_size)) { printf("test failed"); exit(-1); }
   for(int i = 0; i < incre_step; i++) { ref.pop_front(); }
   buff.printStates();
 
@@ -197,26 +208,26 @@ void SensorQueue_Test(int window_size, int incre_step, int n_max_pool) {
   printf("=============================\r\n");
   //l:12 b:3
 
-  printf("=============================\r\n");
-  ref.clear();
-  printf("Constructing overflow test data\r\n");
-  //overflows the buffer
-  for(int i = 0; i < 35; i++) {
-    buff.append(-1024);
-  }
+  // printf("=============================\r\n");
+  // ref.clear();
+  // printf("Constructing overflow test data\r\n");
+  // //overflows the buffer
+  // for(int i = 0; i < 35; i++) {
+  //   buff.append(-1024);
+  // }
 
-  for(int i = 0; i < window_size; i++) {
-    ref.push_back(i * -1);
-    buff.append(i * -1);
-  }
+  // for(int i = 0; i < window_size; i++) {
+  //   ref.push_back(i * -1);
+  //   buff.append(i * -1);
+  // }
 
-  for(int i = 0; i < (window_size - (incre_step * n_max_pool)); i++) {
-    buff.append(0);
-  }
+  // for(int i = 0; i < incre_step * n_max_pool; i++) {
+  //   buff.append(0);
+  // } 
 
-  buff.copyTo(result);
-  buff.printStates();
-  if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
+  // buff.copyTo(result);
+  // buff.printStates();
+  // if(!compare_test(result, ref, window_size)) { printf("test failed"); exit(-1); }
 
 }
 #endif
