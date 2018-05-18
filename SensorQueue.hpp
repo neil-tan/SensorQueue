@@ -27,7 +27,7 @@ class SensorQueue {
   public:
     SensorQueue(uint32_t length, uint16_t blk_length, uint16_t max_pool_blks = 1);
     void append(T elem);  //called by interrupt
-    void setCallBack(void (*_fun_ptr));  //notify when a segment is full
+    void setCallBack(void (*_fun_ptr)(void));  //notify when a segment is full
     void copyTo(void *ptr, bool adv_frame = true);  //fill the ptr with the newest elements
     void printStates(void);
 };
@@ -65,7 +65,7 @@ T* SensorQueue<T>::newBlock(void) {
 }
 
 template <class T>
-void SensorQueue<T>::setCallBack(void (*_fun_ptr)) {
+void SensorQueue<T>::setCallBack(void (*_fun_ptr)(void)) {
   callback_func = _fun_ptr;
 }
 
@@ -76,7 +76,7 @@ void SensorQueue<T>::append_helper(T elem) {
       //(*callback_func)();
       if(callback_func != NULL) {
         queue.call(*callback_func);  //NT: change this to mbed os default queue maybe?
-        queue.dispatch(0);
+        //queue.dispatch(0);
       }
     } else {
       printf("warning: max_pool_blks exceeded\r\n");
@@ -94,14 +94,14 @@ void SensorQueue<T>::append_helper(T elem) {
 template <class T>
 void SensorQueue<T>::append(T elem) {
   queue.call(this, &SensorQueue<T>::append_helper, elem);
-  queue.dispatch(0); //returns immediately
+  //queue.dispatch(0); //returns immediately
 }
 
 template <class T>
 void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
   auto it = block_list.begin();
   for(int i = 0; i < total_blks; i++) {
-    printf("offset is: %d\r\n", i * blk_length);
+    //printf("offset is: %d\r\n", i * blk_length);
     memcpy((void*)(ptr + i * blk_length * sizeof(T)), (void*) *it, sizeof(T) * blk_length);
     it++;
   }
@@ -115,8 +115,7 @@ void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
 template <class T>
 void SensorQueue<T>::copyTo(void *ptr, bool adv_frame) {
   queue.call(this, &SensorQueue<T>::copyTo_helper, ptr, adv_frame);
-  queue.dispatch(1000);
-  //NT: why doesn't queue.dispatch() work?
+  //returns too quickly
 }
 
 
