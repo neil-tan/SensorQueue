@@ -15,6 +15,7 @@ class SensorQueue {
     uint16_t total_blks;
     uint16_t blk_offset; //The index within an individual block
     Thread eventThread;
+    Semaphore *buffer_lock;
     EventQueue queue;
 
 
@@ -22,7 +23,6 @@ class SensorQueue {
     std::list<T*> block_list;
     T* newBlock(void);
     void append_helper(T elem);
-    void copyTo_helper(void* ptr, bool adv_frame = true);
 
   public:
     SensorQueue(uint32_t length, uint16_t blk_length, uint16_t max_pool_blks = 1);
@@ -30,6 +30,7 @@ class SensorQueue {
     void setCallBack(void (*_fun_ptr)(void));  //notify when a segment is full
     void copyTo(void *ptr, bool adv_frame = true);  //fill the ptr with the newest elements
     void printStates(void);
+    ~SensorQueue();
 };
 
 template <class T>
@@ -49,6 +50,7 @@ SensorQueue<T>::SensorQueue(uint32_t length, uint16_t _blk_length, uint16_t _max
   blk_offset = 0;
 
   eventThread.start(callback(&queue, &EventQueue::dispatch_forever));
+  buffer_lock = new Semaphore(1);
   //Init Block
   newBlock();
 
@@ -71,6 +73,7 @@ void SensorQueue<T>::setCallBack(void (*_fun_ptr)(void)) {
 
 template <class T>
 void SensorQueue<T>::append_helper(T elem) {
+  buffer_lock->wait();
   if(blk_offset >= blk_length) {
     if(block_list.size() < max_pool_blks + total_blks) {
       //(*callback_func)();
@@ -89,6 +92,7 @@ void SensorQueue<T>::append_helper(T elem) {
   T* current_blk = block_list.back();
   current_blk[blk_offset] = elem;
   blk_offset += 1;
+  buffer_lock->release();
 }
 
 template <class T>
@@ -98,7 +102,8 @@ void SensorQueue<T>::append(T elem) {
 }
 
 template <class T>
-void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
+void SensorQueue<T>::copyTo(void *ptr, bool adv_frame) {
+  buffer_lock->wait();
   auto it = block_list.begin();
   for(int i = 0; i < total_blks; i++) {
     //printf("offset is: %d\r\n", i * blk_length);
@@ -110,15 +115,13 @@ void SensorQueue<T>::copyTo_helper(void *ptr, bool adv_frame) {
     free(block_list.front());
     block_list.pop_front();
   }
+  buffer_lock->release();
 }
 
 template <class T>
-void SensorQueue<T>::copyTo(void *ptr, bool adv_frame) {
-  queue.call(this, &SensorQueue<T>::copyTo_helper, ptr, adv_frame);
-  //returns too quickly
+SensorQueue<T>::~SensorQueue() {
+  delete buffer_lock;
 }
-
-
 template <class T>
 bool compare_test(T* input, list<T> ref, int n) {
   int i = 0;
